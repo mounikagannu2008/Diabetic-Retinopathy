@@ -63,7 +63,7 @@ class Config:
     # ------------------------------------------------------------------
     # SPLIT
     # ------------------------------------------------------------------
-    max_total_samples: int = 500  # <<< SUBSET FOR CPU FEASIBILITY >>>
+    max_total_samples: int = None  # <<< SUBSET FOR CPU FEASIBILITY >>>
                                     # Set to None to use the full labeled dataset.
                                     # 500 is a deliberate scope-cut for slow/CPU-only
                                     # hardware — stratified so class proportions match
@@ -95,7 +95,7 @@ class Config:
                                           # trade-off — the right call when there's no GPU
     pretrained: bool = True
     batch_size: int = 16
-    num_epochs: int = 12            # trimmed further for the 500-image subset —
+    num_epochs: int = 20            # trimmed further for the 500-image subset —
                                       # a small dataset converges (or overfits) fast,
                                       # no need for a long ceiling
     lr_head: float = 1e-3          # LR for newly-initialized classifier head

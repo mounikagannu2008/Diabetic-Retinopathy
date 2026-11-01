@@ -10,6 +10,7 @@ data/splits/{train,val,test}.csv).
 
 import os
 import sys
+import shutil
 import time
 import json
 import numpy as np
@@ -40,6 +41,31 @@ def load_split(name: str) -> pd.DataFrame:
             f"Split file '{path}' not found. Run `python src/make_splits.py` first."
         )
     return pd.read_csv(path)
+
+
+def backup_existing_checkpoint(checkpoint_path: str):
+    """
+    SAFETY FIX: before any training run can overwrite the checkpoint, copy
+    whatever is currently there to a timestamped backup file first. This
+    exists because a checkpoint was previously lost — an interrupted or
+    accidental run overwrote a good, fully-trained model with a barely-
+    trained one, with no way to recover the original. This makes that
+    failure mode impossible going forward: the last-known-good checkpoint
+    is always preserved before a new run gets a chance to replace it,
+    regardless of whether the new run finishes, is interrupted, or turns
+    out worse.
+    """
+    if not os.path.exists(checkpoint_path):
+        return  # nothing to protect yet — first-ever training run
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    backup_dir = os.path.join(os.path.dirname(checkpoint_path), "backups")
+    os.makedirs(backup_dir, exist_ok=True)
+    backup_name = f"dr_classifier_backup_{timestamp}.pt"
+    backup_path = os.path.join(backup_dir, backup_name)
+    shutil.copy2(checkpoint_path, backup_path)
+    print(f"Existing checkpoint backed up to: {backup_path}")
+    print("(This backup step runs automatically before every training run, "
+          "so a new run can never silently destroy a previous good model.)")
 
 
 def run_epoch(model, loader, criterion, optimizer, device, train: bool):
@@ -77,6 +103,9 @@ def run_epoch(model, loader, criterion, optimizer, device, train: bool):
 def main():
     device = get_device()
     print(f"Using device: {device}")
+
+    checkpoint_path = os.path.join(cfg.model_dir, "dr_classifier_best.pt")
+    backup_existing_checkpoint(checkpoint_path)
 
     train_df = load_split("train")
     val_df = load_split("val")
@@ -141,7 +170,6 @@ def main():
         if val_f1 > best_val_f1:
             best_val_f1 = val_f1
             epochs_without_improvement = 0
-            checkpoint_path = os.path.join(cfg.model_dir, "dr_classifier_best.pt")
             torch.save({
                 "model_state_dict": model.state_dict(),
                 "backbone": cfg.backbone,
@@ -164,7 +192,7 @@ def main():
         json.dump(history, f, indent=2)
 
     print(f"\nTraining complete. Best val_f1={best_val_f1:.4f}")
-    print(f"Best model: {os.path.join(cfg.model_dir, 'dr_classifier_best.pt')}")
+    print(f"Best model: {checkpoint_path}")
     print(f"Training history: {history_path}")
     print("\nThese numbers reflect the actual run on your machine — "
           "no results have been fabricated or assumed.")
