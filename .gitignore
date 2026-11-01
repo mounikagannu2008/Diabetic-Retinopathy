@@ -56,4 +56,5 @@ desktop.ini
 # Streamlit local config/secrets (if ever added)
 # ============================================================
 .streamlit/secrets.toml
-DRIVE/
+DRIVE/PROJECT_HANDOFF.md 
+handoff.txt 
